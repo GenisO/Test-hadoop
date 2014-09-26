@@ -5,7 +5,21 @@ import java.util.LinkedList;
  * Created by DEIM on 22/09/14.
  */
 public class DataXceiverServer {
-  private DWRRManager dwrrmanager = new DWRRManager(this);
+  private DWRRManager dwrrmanager = new DWRRManager(new Configuration());
+
+  public static void main(String[] args) {
+    DataXceiverServer dXc = new DataXceiverServer();
+
+    while (true) {
+      dXc.doRequests();
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+
+    }
+  }
 
   public void doRequests() {
     Daemon threadedDWRR = new Daemon(new ThreadGroup("DWRR Thread"),
@@ -39,21 +53,6 @@ public class DataXceiverServer {
         }
       });
     threadedDWRR.start();
-  }
-
-
-  public static void main(String[] args) {
-    DataXceiverServer dXc = new DataXceiverServer();
-
-    while (true) {
-      dXc.doRequests();
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-
-    }
   }
 
 
