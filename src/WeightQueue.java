@@ -42,6 +42,10 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     this.deficitCounter = defC;
   }
 
+  public int numPendingRequests() {
+    return this.size();
+  }
+
   @Override
   public int size() {
     return this.requests.size();
@@ -130,5 +134,9 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
   @Override
   public E peek() {
     return this.requests.peek();
+  }
+
+  public void processRequest() {
+    // TODO TODO
   }
 }

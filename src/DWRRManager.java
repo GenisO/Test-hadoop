@@ -11,18 +11,14 @@ public class DWRRManager {
   private final long NULL_SIZE = 0;
   private Configuration conf;
   private int numQueues;
-  private int lvl;
   private long quantumSize;
-  private long currentId;
-  private Map<Long, WeightQueue<RequestObject>> referenceRequestQueue;
-  private Queue<WeightQueue<RequestObject>> requestsQueue;
-
   private Daemon threadedDWRR = new Daemon(new ThreadGroup("DWRR Thread"),
     new Runnable() {
       //      public final Log LOG = LogFactory.getLog(Daemon.class);
       @Override
       public void run() {
         while (true) {
+
           synchronized (this) {
             try {
               System.out.println("CAMAMILLA Thread dormit");
@@ -33,30 +29,51 @@ public class DWRRManager {
           }
           System.out.println("CAMAMILLA Thread despert");
 
-          RequestObject rec = getReqObject();
-          if (rec != null) {
-            System.out.println("CAMAMILLA " + rec.getClassId() + " Thread processar peticio " + rec.getOp());        // TODO TODO log
-            try {
-              DataXceiverDWRR dXc = rec.getdXc();
-              dXc.makeOp(rec.getOp());
-            } catch (Exception e) {
-              System.out.println("CAMAMILLA " + rec.getClassId() + " Thread DWRRManager peta " + e);        // TODO TODO log
+          while (allRequestsQueue.size() > 0) {
+            WeightQueue<RequestObject> queue = allRequestsQueue.peek();
+
+            while (queue.numPendingRequests() > 0 /* && queue.getDeficitCounter() > quantumSize*/) {
+              RequestObject request = queue.peek();
+              long requestSize = request.getSize();
+              long queueDeficitCounter = queue.getDeficitCounter();
+              if (requestSize <= queueDeficitCounter) {     // Processar petico
+                queueDeficitCounter -= requestSize;
+                queue.setDeficitCounter(queueDeficitCounter);
+                request = queue.poll();
+                System.out.println("CAMAMILLA " + request.getClassId() + " Thread processar peticio " + request.getOp());        // TODO TODO log
+                try {
+                  DataXceiverDWRR dXc = request.getdXc();
+                  dXc.makeOp(request.getOp());
+                } catch (Exception e) {
+                  System.out.println("CAMAMILLA " + request.getClassId() + " Thread DWRRManager peta " + e);        // TODO TODO log
+                }
+              } else {      // Augmentar deficitCounter i encuar i mirar seguent cua
+                queueDeficitCounter += quantumSize;
+                queue.setDeficitCounter(queueDeficitCounter);
+                break;
+              }
+            }
+
+            queue = allRequestsQueue.poll();
+            if (queue.numPendingRequests() > 0) {   // Si encara te peticions, tornar a encuar, sino totes les peticions ja estan servides i es descarta
+              allRequestsQueue.add(queue);
             }
           }
-
         }
       }
     });
+  private long currentId;
+  private Map<Long, WeightQueue<RequestObject>> allRequestQueueReferences;
+  private Queue<WeightQueue<RequestObject>> allRequestsQueue;
 
 
   // TODO TODO fer que totes les classes propies que siguin modificacio duna altra de hadoop siguin per herencia, aixi afavarim la reutilitzacio de codi
   public DWRRManager(Configuration conf) {
-    this.requestsQueue = new LinkedList<WeightQueue<RequestObject>>();
-    this.referenceRequestQueue = new HashMap<Long, WeightQueue<RequestObject>>();
+    this.allRequestsQueue = new LinkedList<WeightQueue<RequestObject>>();
+    this.allRequestQueueReferences = new HashMap<Long, WeightQueue<RequestObject>>();
     this.currentId = -1;
     this.conf = conf;
     this.numQueues = 0;
-    this.lvl = 0;
 
     // fer un objecte gros amb tot el de les cues,
     // i la gestio de les cues que tambe sigui una cua, i anem encuant i desencuant
@@ -79,63 +96,29 @@ public class DWRRManager {
    * E					poll(long timeout, TimeUnit unit)			Retrieves and removes the head of this queue, waiting up to the specified wait time if necessary for an element to become available.
    */
   public void addOp(RequestObject rec, long classId) {
-    WeightQueue<RequestObject> reqQueue;
-
-    if (referenceRequestQueue.get(classId) == null) {
-      reqQueue = new WeightQueue<RequestObject>(classId, 1);
-      referenceRequestQueue.put(classId, reqQueue);
-      requestsQueue.add(reqQueue);
+    WeightQueue<RequestObject> currentRequestQueue;
+    boolean wakeUpThread = false;
+    if (allRequestsQueue.size() == 0) {
+      wakeUpThread = true;
+    }
+    if (allRequestQueueReferences.get(classId) == null) {
+      currentRequestQueue = new WeightQueue<RequestObject>(classId, 1);
+      allRequestQueueReferences.put(classId, currentRequestQueue);
+      allRequestsQueue.add(currentRequestQueue);
       numQueues++;
     } else {
-      reqQueue = referenceRequestQueue.get(classId);
+      currentRequestQueue = allRequestQueueReferences.get(classId);
     }
 
-    reqQueue.add(rec);
+    currentRequestQueue.add(rec);
 
-    System.out.println("CAMAMILLA peticio " + classId + " encuada. Quantes peticions te: " + reqQueue.size());      // TODO TODO log
-    synchronized (threadedDWRR.getRunnable()) {
-      threadedDWRR.getRunnable().notify();
-    }
-  }
-
-  public RequestObject getReqObject() {
-    RequestObject rec = null;
-    if (lvl <= numQueues) {
-      WeightQueue<RequestObject> reqQueue = requestsQueue.peek();
-      if (reqQueue != null) {
-        rec = reqQueue.peek();
-        if (rec == null) {
-          if (requestsQueue.size() > 1) {
-            requestsQueue.add(requestsQueue.poll());
-            lvl++;
-            return getReqObject();
-          }
-        } else {
-          long defCount = reqQueue.getDeficitCounter();
-          if (currentId == -1) {
-            currentId = reqQueue.getClassId();
-            defCount += quantumSize;
-            reqQueue.setDeficitCounter(defCount);
-          }
-          long len = rec.getSize();
-          if (len <= defCount) {
-            defCount -= len;
-            reqQueue.setDeficitCounter(defCount);
-            return reqQueue.poll();
-          } else {
-            if (requestsQueue.size() > 1) {
-              requestsQueue.add(requestsQueue.poll());
-              lvl++;
-              return getReqObject();
-            }
-          }
-        }
+    System.out.println("CAMAMILLA peticio " + classId + " encuada. Quantes peticions te: " + currentRequestQueue.size());      // TODO TODO log
+    if (wakeUpThread) {
+      synchronized (threadedDWRR.getRunnable()) {
+        threadedDWRR.getRunnable().notify();
       }
     }
 
-    lvl = 0;
-    return rec;
   }
-
 
 }
