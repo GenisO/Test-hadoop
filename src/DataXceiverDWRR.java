@@ -21,11 +21,11 @@ public class DataXceiverDWRR {
       default:
         System.out.println("ERROR makeOp " + op.code);      // TODO TODO log
     }
-    try {
-      Thread.sleep(5000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+//    try {
+//      Thread.sleep(5000);
+//    } catch (InterruptedException e) {
+//      e.printStackTrace();
+//    }
   }
 
   public void processOp() {

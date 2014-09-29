@@ -8,11 +8,14 @@ import java.util.Queue;
  */
 public class WeightQueue<E extends RequestObject> implements Queue<E> {
 
+  private long processedBytes;
   private Queue<E> requests;
   private long deficitCounter;
   private long weight;
   private int processedRequests;
+  private int totalRequests;
   private long classId;
+
 
   public WeightQueue(long classId, long weight) {
     this.weight = weight;
@@ -20,6 +23,16 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     this.deficitCounter = 0;
     this.requests = new LinkedList<E>();
     this.processedRequests = 0;
+    this.totalRequests = 0;
+    this.processedBytes = 0;
+  }
+
+  public long getProcessedBytes() {
+    return processedBytes;
+  }
+
+  public void updateProcessedBytes(long processedBytes) {
+    this.processedBytes += processedBytes;
   }
 
   public long getWeight() {
@@ -34,6 +47,10 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     return processedRequests;
   }
 
+  public void updateProcessedRequests() {
+    this.processedRequests++;
+  }
+
   public long getDeficitCounter() {
     return deficitCounter;
   }
@@ -44,6 +61,11 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
 
   public int numPendingRequests() {
     return this.size();
+  }
+
+  @Override
+  public String toString() {
+    return "ClassId " + classId + "\t\tpes " + weight + "\t\tdeficitCounter " + deficitCounter + "\t\t" + processedRequests + ":" + totalRequests + " ";
   }
 
   @Override
@@ -78,6 +100,7 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
 
   @Override
   public boolean add(E e) {
+    this.totalRequests++;
     return this.requests.add(e);
   }
 
@@ -136,7 +159,4 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     return this.requests.peek();
   }
 
-  public void processRequest() {
-    // TODO TODO
-  }
 }
