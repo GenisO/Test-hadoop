@@ -1,13 +1,11 @@
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
  * Created by DEIM on 26/09/14.
  */
 public class WeightQueue<E extends RequestObject> implements Queue<E> {
 
+  private long insertionTime;
   private long processedBytes;
   private Queue<E> requests;
   private long deficitCounter;
@@ -15,9 +13,11 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
   private int processedRequests;
   private int totalRequests;
   private long classId;
+  private boolean newRound;
+  private List<Integer> order;
 
 
-  public WeightQueue(long classId, long weight) {
+  public WeightQueue(long classId, long weight, long time) {
     this.weight = weight;
     this.classId = classId;
     this.deficitCounter = 0;
@@ -25,6 +25,9 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     this.processedRequests = 0;
     this.totalRequests = 0;
     this.processedBytes = 0;
+    this.newRound = true;
+    this.insertionTime = time;
+    this.order = new LinkedList<Integer>();
   }
 
   public long getProcessedBytes() {
@@ -65,7 +68,7 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
 
   @Override
   public String toString() {
-    return "ClassId " + classId + "\t\tpes " + weight + "\t\tdeficitCounter " + deficitCounter + "\t\t" + processedRequests + ":" + totalRequests + " ";
+    return "Insercio " + insertionTime + "\tOrdre " + order + "\t\t\t\tclassId " + classId + "\t\t\t\tpes " + weight + "\t\t\t\tdeficitCounter " + deficitCounter + "\t\t\t\t" + processedRequests + ":" + totalRequests + "\t\t\t\tprocessed bytes " + processedBytes;
   }
 
   @Override
@@ -159,4 +162,15 @@ public class WeightQueue<E extends RequestObject> implements Queue<E> {
     return this.requests.peek();
   }
 
+  public boolean isNewRound() {
+    return newRound;
+  }
+
+  public void setNewRound(boolean nR) {
+    newRound = nR;
+  }
+
+  public void setEndOrder(int numQueues) {
+    order.add(numQueues);
+  }
 }

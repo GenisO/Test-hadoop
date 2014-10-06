@@ -21,18 +21,13 @@ public class DataXceiverDWRR {
       default:
         System.out.println("ERROR makeOp " + op.code);      // TODO TODO log
     }
-//    try {
-//      Thread.sleep(5000);
-//    } catch (InterruptedException e) {
-//      e.printStackTrace();
-//    }
   }
 
   public void processOp() {
     int size = Op.values().length;
     Op[] values = Op.values();
     Op op = values[((int) (Math.random() * size))];
-    long len = (long) (Math.random() * 50000);
+    long len = (long) (Math.random() * 100663296 + 33554432);
     RequestObject req = new RequestObject(this, classId, op, len);
     dwrrmanager.addOp(req, classId);
   }
